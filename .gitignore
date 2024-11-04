@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+config.ini
+
+data/
+sql/*.db
+
+*.ipynb
+*.out
+*.log
