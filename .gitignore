@@ -4,6 +4,7 @@ config.ini
 
 data/
 sql/*.db
+!sql/
 
 *.ipynb
 *.out

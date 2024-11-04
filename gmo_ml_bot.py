@@ -35,7 +35,6 @@ default_available = int(get_available_amount())  # デフォルトの残高
 hour = datetime.now().hour
 
 while True:
-    print_log(hour)
     if hour != datetime.now().hour:  # 1時間経過したら取引を行う
         print_log("****************", notify=False)
         try:
@@ -63,7 +62,10 @@ while True:
             days=8,
         )
         X = calc_features(X, train=False)
-        X = X.iloc[-2].copy()
+        X = X.loc[
+            X.index
+            == (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:00:00")
+        ].copy()
         print_log(f"\n{X}", notify=False)
 
         pred_proba = model.predict_proba(X.values.reshape(1, -1))[0][1]
