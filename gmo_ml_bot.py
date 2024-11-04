@@ -66,9 +66,9 @@ while True:
             X.index
             == (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:00:00")
         ].copy()
-        print_log(f"\n{X}", notify=False)
+        print_log(f"\n{X.squeeze()}", notify=False)
 
-        pred_proba = model.predict_proba(X.values.reshape(1, -1))[0][1]
+        pred_proba = model.predict_proba(X)[0][1]
         print_log(pred_proba, notify=False)
 
         if pred_proba >= 0.5:
