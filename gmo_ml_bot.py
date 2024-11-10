@@ -50,7 +50,7 @@ while True:
         time.sleep(1)
 
         # --------ポジションを決めるための予測を行う--------#
-        if datetime.now().hour >= 6:  # 日本時間朝6：00に新しい日付に切り替わる
+        if datetime.now().hour > 6:  # 日本時間朝6：00に新しい日付に切り替わる
             end_date = datetime.now().strftime("%Y%m%d")
         else:
             end_date = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
