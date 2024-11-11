@@ -47,37 +47,39 @@ while True:
 
         exe_all_position()  # ポジションを決済
 
-        time.sleep(1)
-
         # --------ポジションを決めるための予測を行う--------#
-        if datetime.now().hour > 6:  # 日本時間朝6：00に新しい日付に切り替わる
-            end_date = datetime.now().strftime("%Y%m%d")
-        else:
-            end_date = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+        try:
+            if datetime.now().hour > 6:  # 日本時間朝6：00に新しい日付に切り替わる
+                end_date = datetime.now().strftime("%Y%m%d")
+            else:
+                end_date = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
 
-        X = get_data_for_days(
-            symbol="BTC_JPY",
-            interval="1hour",
-            end_date=end_date,
-            days=8,
-        )
-        X = calc_features(X, train=False)
-        X = X.loc[
-            X.index
-            == (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:00:00")
-        ].copy()
-        print_log(f"\n{X.squeeze()}", notify=False)
+            X = get_data_for_days(
+                symbol="BTC_JPY",
+                interval="1hour",
+                end_date=end_date,
+                days=8,
+            )
+            X = calc_features(X, train=False)
+            X = X.loc[
+                X.index
+                == (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:00:00")
+            ].copy()
+            print_log(f"\n{X.squeeze()}", notify=False)
 
-        pred_proba = model.predict_proba(X)[0][1]
-        print_log(pred_proba, notify=False)
+            pred_proba = model.predict_proba(X)[0][1]
+            print_log(pred_proba, notify=False)
 
-        if pred_proba >= 0.5:
-            side = "BUY"
-            hour = datetime.now().hour
-        elif pred_proba < 0.5:
-            side = "SELL"
-            hour = datetime.now().hour
-        else:
+            if pred_proba >= 0.5:
+                side = "BUY"
+                hour = datetime.now().hour
+            elif pred_proba < 0.5:
+                side = "SELL"
+                hour = datetime.now().hour
+            else:
+                continue
+        except Exception as e:
+            print_log(f"予測中にエラーが発生しました: {e}", level="error", notify=True)
             continue
 
         if trade_num != 0:
