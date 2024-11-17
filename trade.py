@@ -164,7 +164,7 @@ def close_position(symbol, side, size, executionType, position_id):
 def exe_all_position():
     """すべてのポジションを決済する"""
     position = get_position()
-    if position["data"]["list"]:
+    if "list" in position["data"]:
         for i in position["data"]["list"]:
             close_position(i["symbol"], i["side"], i["size"], "MARKET", i["positionId"])
             print_log(f"{i['symbol']}({i['side']}注文)は決済されました", notify=True)
@@ -181,7 +181,7 @@ def order_process(
     time.sleep(1)
 
     position = get_position()
-    if position["data"]["list"]:
+    if "list" in position["data"]:
         price = position["data"]["list"][0]["price"]
         print_log(f"{symbol}を{price}円で{side}しました", notify=True)
 
