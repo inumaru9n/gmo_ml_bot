@@ -166,8 +166,15 @@ def exe_all_position():
     position = get_position()
     if "list" in position["data"]:
         for i in position["data"]["list"]:
-            close_position(i["symbol"], i["side"], i["size"], "MARKET", i["positionId"])
-            print_log(f"{i['symbol']}({i['side']}注文)は決済されました", notify=True)
+            if i["side"] == "BUY":
+                close_position(
+                    i["symbol"], "SELL", i["size"], "MARKET", i["positionId"]
+                )
+                print_log(f"{i['symbol']}(BUY)は決済されました", notify=True)
+            elif i["side"] == "SELL":
+                close_position(i["symbol"], "BUY", i["size"], "MARKET", i["positionId"])
+                print_log(f"{i['symbol']}(SELL)は決済されました", notify=True)
+
     else:
         print_log("ポジションはありません", notify=True)
 
