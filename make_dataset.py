@@ -25,6 +25,8 @@ def get_1day_data(symbol="BTC_JPY", interval="1hour", date=""):
         )
         data.set_index("openTime", inplace=True)
         data.index = data.index.tz_convert("Asia/Tokyo")
+    else:
+        raise Exception(f"Error fetching data: {res_json}")
 
     return data
 

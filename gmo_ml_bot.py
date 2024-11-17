@@ -126,7 +126,7 @@ while True:
                     side = "SELL"
                     hour = current_time.hour
                 else:
-                    continue
+                    raise ValueError("予測確率が不正です")
             except Exception as e:
                 print_log(
                     f"予測中にエラーが発生しました: {e}", level="error", notify=True
@@ -186,6 +186,7 @@ while True:
                         level="error",
                         notify=True,
                     )
+                    continue
 
             try:
                 available = int(get_available_amount())
@@ -200,6 +201,7 @@ while True:
                     level="error",
                     notify=True,
                 )
+                continue
 
             if profit_rate < -0.2:
                 print_log(f"利益率が -20% を下回りました: {profit_rate}", notify=True)
@@ -215,6 +217,7 @@ while True:
                 print_log(
                     f"注文中にエラーが発生しました: {e}", level="error", notify=True
                 )
+                continue
         else:
             remaining_minutes = 60 - current_time.minute
             sleep_time = 60 * remaining_minutes
