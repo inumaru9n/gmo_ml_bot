@@ -9,18 +9,13 @@ def get_1day_data(symbol="BTC_JPY", interval="1hour", date=""):
     endPoint = "https://api.coin.z.com/public"
     path = f"/v1/klines?symbol={symbol}&interval={interval}&date={date}"
 
-    response = requests.get(endPoint + path)
+    res = requests.get(endPoint + path)
 
-    # レスポンスのステータスコードを確認
-    if response.status_code != 200:
-        raise Exception(f"API request failed with status code {response.status_code}")
+    res_json = res.json()
+    if res.status_code != 200 or "data" not in res_json:
+        raise Exception(f"Error fetching data: {res_json}")
 
-    # レスポンスの内容を確認
-    response_json = response.json()
-    if "data" not in response_json:
-        raise KeyError("'data' not found in API response")
-
-    data = pd.json_normalize(response.json()["data"])
+    data = pd.json_normalize(res_json["data"])
 
     if len(data) != 0:
         data["openTime"] = pd.to_datetime(

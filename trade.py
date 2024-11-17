@@ -31,7 +31,10 @@ def get_price(symbol="BTC_JPY"):
 
     res = requests.get(endPoint + path)
 
-    return res.json()["data"][0]["ask"]
+    res_json = res.json()
+    if res.status_code != 200 or "data" not in res_json:
+        raise Exception(f"Error fetching price: {res_json}")
+    return res_json["data"][0]["ask"]
 
 
 def get_available_amount():
@@ -52,7 +55,10 @@ def get_available_amount():
 
     res = requests.get(endPoint + path, headers=headers)
 
-    return res.json()["data"]["availableAmount"]
+    res_json = res.json()
+    if res.status_code != 200 or "data" not in res_json:
+        raise Exception(f"Error fetching available amount: {res_json}")
+    return res_json["data"]["availableAmount"]
 
 
 def build_position(
@@ -96,7 +102,10 @@ def build_position(
 
     res = requests.post(endPoint + path, headers=headers, data=json.dumps(reqBody))
 
-    return res.json()
+    res_json = res.json()
+    if res.status_code != 200 or "data" not in res_json:
+        raise Exception(f"Error building position: {res_json}")
+    return res_json
 
 
 def get_position():
@@ -116,7 +125,10 @@ def get_position():
 
     res = requests.get(endPoint + path, headers=headers, params=parameters)
 
-    return res.json()
+    res_json = res.json()
+    if res.status_code != 200 or "data" not in res_json:
+        raise Exception(f"Error fetching positions: {res_json}")
+    return res_json
 
 
 def close_position(symbol, side, size, executionType, position_id):
@@ -143,46 +155,35 @@ def close_position(symbol, side, size, executionType, position_id):
 
     res = requests.post(endPoint + path, headers=headers, data=json.dumps(reqBody))
 
-    return res.json()
+    res_json = res.json()
+    if res.status_code != 200 or "data" not in res_json:
+        raise Exception(f"Error closing positions: {res_json}")
+    return res_json
 
 
 def exe_all_position():
     """すべてのポジションを決済する"""
     position = get_position()
-    if position["data"] == {}:
-        print_log("ポジションはありません", notify=True)
-    else:
+    if position["data"]["list"]:
         for i in position["data"]["list"]:
-            if i["side"] == "BUY":
-                close_res = close_position(
-                    i["symbol"], "SELL", i["size"], "MARKET", i["positionId"]
-                )
-                if close_res["status"] == 0:
-                    print_log("レバレッジ取引(買い注文)は決済されました", notify=True)
-                else:
-                    print_log(close_res, level="error", notify=True)
-            elif i["side"] == "SELL":
-                close_res = close_position(
-                    i["symbol"], "BUY", i["size"], "MARKET", i["positionId"]
-                )
-                if close_res["status"] == 0:
-                    print_log("レバレッジ取引(売り注文)は決済されました", notify=True)
-                else:
-                    print_log(close_res, level="error", notify=True)
+            close_position(i["symbol"], i["side"], i["size"], "MARKET", i["positionId"])
+            print_log(f"{i['symbol']}({i['side']}注文)は決済されました", notify=True)
+    else:
+        print_log("ポジションはありません", notify=True)
 
 
 def order_process(
     symbol, side, executionType, size, price="", losscutPrice="", timeInForce="FAK"
 ):
     """注文を出す"""
-    build_position(
-        symbol, side, executionType, size, price, losscutPrice, timeInForce="FAK"
-    )
+    build_position(symbol, side, executionType, size, price, losscutPrice, timeInForce)
 
     time.sleep(1)
 
-    price = get_position()["data"]["list"][0]["price"]
-    print_log(f"ビットコインを{price}円で{side}しました", notify=True)
+    position = get_position()
+    if position["data"]["list"]:
+        price = position["data"]["list"][0]["price"]
+        print_log(f"{symbol}を{price}円で{side}しました", notify=True)
 
 
 def get_trading_result():
@@ -202,7 +203,11 @@ def get_trading_result():
 
     res = requests.get(endPoint + path, headers=headers, params=parameters)
 
-    data_list = res.json()["data"]["list"]
+    res_json = res.json()
+    if res.status_code != 200 or "data" not in res_json:
+        raise Exception(f"Error fetching trading result: {res_json}")
+
+    data_list = res_json["data"]["list"]
     time_ = pd.Timestamp(data_list[1]["timestamp"]).astimezone(timezone("Asia/Tokyo"))
     date = f"{time_.year}-{time_.month}-{time_.day} {time_.hour}:00:00"
     side = data_list[1]["side"]
