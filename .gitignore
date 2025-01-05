@@ -7,5 +7,6 @@ sql/*.db
 !sql/
 
 *.ipynb
+!train*.ipynb
 *.out
 *.log

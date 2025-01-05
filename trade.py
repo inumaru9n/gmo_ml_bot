@@ -216,7 +216,7 @@ def get_trading_result():
 
     data_list = res_json["data"]["list"]
     time_ = pd.Timestamp(data_list[1]["timestamp"]).astimezone(timezone("Asia/Tokyo"))
-    date = f"{time_.year}-{time_.month}-{time_.day} {time_.hour}:00:00"
+    date = time_.strftime("%Y-%m-%d %H:00:00")
     side = data_list[1]["side"]
     position = -1 if side == "SELL" else 1
     order_price = int(data_list[1]["price"])

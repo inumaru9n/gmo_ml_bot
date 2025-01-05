@@ -53,18 +53,18 @@ def calc_features(df, train=True):
     df["return"] = np.log(df["close"] / df["open"])
 
     # df["open2close"] = df["close"] / df["open"]
-    df["high2low"] = df["high"] / df["low"]
-    mean_price = df[["open", "high", "low", "close"]].mean(axis=1)
-    median_price = df[["open", "high", "low", "close"]].median(axis=1)
-    df["high2mean"] = df["high"] / mean_price
-    df["low2mean"] = df["low"] / mean_price
-    df["high2median"] = df["high"] / median_price
-    df["low2median"] = df["low"] / median_price
+    # df["high2low"] = df["high"] / df["low"]
+    # mean_price = df[["open", "high", "low", "close"]].mean(axis=1)
+    # median_price = df[["open", "high", "low", "close"]].median(axis=1)
+    # df["high2mean"] = df["high"] / mean_price
+    # df["low2mean"] = df["low"] / mean_price
+    # df["high2median"] = df["high"] / median_price
+    # df["low2median"] = df["low"] / median_price
 
-    rolling_windows = [5, 75]  # 予測時のget_data_for_daysと合わせること
+    rolling_windows = [5, 13, 25]  # 予測時のget_data_for_daysと合わせること
     for window in rolling_windows:
-        df[f"return_mean_{window}"] = df["return"].rolling(window, 1).mean()  # 移動平均
-        df[f"return_std_{window}"] = df["return"].rolling(window, 1).std()  # 標準偏差
+        df[f"return_mean_{window}"] = df["return"].rolling(window, 2).mean()  # 移動平均
+        df[f"return_std_{window}"] = df["return"].rolling(window, 2).std()  # 標準偏差
         df[f"sharpe_{window}"] = (
             df[f"return_mean_{window}"] / df[f"return_std_{window}"]
         )  # シャープレシオ
@@ -81,6 +81,10 @@ def calc_features(df, train=True):
         df["target_return_sign"] = df["target_return"].apply(
             lambda x: 1 if x >= 0 else 0
         )  # ターゲット（リターンの正負）
+        df["target_price_diff"] = (df["close"] - df["open"]).shift(
+            -1
+        )  # ターゲット（価格差）
+
         df.dropna(subset=["target_return"], inplace=True)
 
     # 使用しない特徴量を削除
