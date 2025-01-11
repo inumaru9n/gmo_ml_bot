@@ -170,13 +170,13 @@ def exe_all_position():
                 close_position(
                     i["symbol"], "SELL", i["size"], "MARKET", i["positionId"]
                 )
-                print_log(f"{i['symbol']}(BUY)は決済されました", notify=True)
+                print_log(f"{i['symbol']}(BUY)は決済されました", notify=False)
             elif i["side"] == "SELL":
                 close_position(i["symbol"], "BUY", i["size"], "MARKET", i["positionId"])
-                print_log(f"{i['symbol']}(SELL)は決済されました", notify=True)
+                print_log(f"{i['symbol']}(SELL)は決済されました", notify=False)
 
     else:
-        print_log("ポジションはありません", notify=True)
+        print_log("ポジションはありません", notify=False)
 
 
 def order_process(
@@ -190,7 +190,7 @@ def order_process(
     position = get_position()
     if "list" in position["data"]:
         price = position["data"]["list"][0]["price"]
-        print_log(f"{symbol}を{price}円で{side}しました", notify=True)
+        print_log(f"{symbol}を{price}円で{side}しました", notify=False)
 
 
 def get_trading_result():

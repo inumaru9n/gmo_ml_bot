@@ -141,7 +141,7 @@ while True:
                     # )
                     print_log(
                         f"決済損益は{tmp_loss_gain}で、現在の残高は{available}円です",
-                        notify=True,
+                        notify=False,
                     )
                 except Exception as e:
                     print_log(
@@ -215,20 +215,20 @@ while True:
                 continue
 
             # --------日次で損益をレポーティング--------#
-            if current_time.hour == 23:
+            if current_time.hour == 0:
                 try:
                     cur.execute(
-                        "SELECT SUM(loss_gain) FROM trading WHERE DATE(date) = DATE('now')"
+                        "SELECT SUM(loss_gain) FROM trading WHERE DATE(date) = DATE('now', '-1 day')"
                     )
                     daily_profit = cur.fetchone()[0] or 0
 
                     cur.execute(
-                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now')"
+                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', '-1 day')"
                     )
                     daily_trades = cur.fetchone()[0]
 
                     cur.execute(
-                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now') AND loss_gain > 0"
+                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', '-1 day') AND loss_gain > 0"
                     )
                     daily_wins = cur.fetchone()[0]
 

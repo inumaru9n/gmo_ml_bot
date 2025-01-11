@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 import requests
 
+# from ta import add_all_ta_features
+# from ta.utils import dropna
+
 
 def get_1day_data(symbol="BTC_JPY", interval="1hour", date=""):
     endPoint = "https://api.coin.z.com/public"
@@ -50,7 +53,16 @@ def get_data_for_days(symbol="BTC_JPY", interval="1hour", end_date="", days=450)
 def calc_features(df, train=True):
     df[df.columns] = df[df.columns].astype(float)
 
-    df["return"] = np.log(df["close"] / df["open"])
+    # df = dropna(df)
+    # df = add_all_ta_features(
+    #     df,
+    #     open="open",
+    #     high="high",
+    #     low="low",
+    #     close="close",
+    #     volume="volume",
+    #     fillna=False,
+    # )
 
     # df["open2close"] = df["close"] / df["open"]
     # df["high2low"] = df["high"] / df["low"]
@@ -60,6 +72,8 @@ def calc_features(df, train=True):
     # df["low2mean"] = df["low"] / mean_price
     # df["high2median"] = df["high"] / median_price
     # df["low2median"] = df["low"] / median_price
+
+    df["return"] = np.log(df["close"] / df["open"])
 
     rolling_windows = [5, 13, 25]  # 予測時のget_data_for_daysと合わせること
     for window in rolling_windows:
