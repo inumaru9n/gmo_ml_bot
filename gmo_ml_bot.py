@@ -100,6 +100,8 @@ while True:
                 hour = current_time.hour
                 continue
 
+            time.sleep(1)
+
             if trade_num > 0:
                 try:
                     (
@@ -124,7 +126,10 @@ while True:
                         ),
                     )
                     conn.commit()
-                    print_log("取引結果をデータベースに格納しました", notify=False)
+                    print_log(
+                        f"取引結果をデータベースに格納しました: id={tmp_id}, date={tmp_date}, position={tmp_position}, order_price={tmp_order_price}, close_price={tmp_close_price}, loss_gain={tmp_loss_gain}",
+                        notify=False,
+                    )
                 except Exception as e:
                     print_log(
                         f"取引結果の格納中にエラーが発生しました: {e}",
