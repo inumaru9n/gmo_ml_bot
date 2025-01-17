@@ -223,17 +223,17 @@ while True:
             if current_time.hour == 0:
                 try:
                     cur.execute(
-                        "SELECT SUM(loss_gain) FROM trading WHERE DATE(date) = DATE('now', '-1 day')"
+                        "SELECT SUM(loss_gain) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day')"
                     )
                     daily_profit = cur.fetchone()[0] or 0
 
                     cur.execute(
-                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', '-1 day')"
+                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day')"
                     )
                     daily_trades = cur.fetchone()[0]
 
                     cur.execute(
-                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', '-1 day') AND loss_gain > 0"
+                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day') AND loss_gain > 0"
                     )
                     daily_wins = cur.fetchone()[0]
 
