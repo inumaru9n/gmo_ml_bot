@@ -64,6 +64,7 @@ except Exception as e:
 
 try:
     default_available = int(get_available_amount())  # デフォルトの残高
+    previous_available = default_available
 except Exception as e:
     print_log(f"残高の取得中にエラーが発生しました: {e}", level="error", notify=True)
     raise
@@ -103,57 +104,62 @@ while True:
             time.sleep(1)
 
             if trade_num > 0:
-                try:
-                    (
-                        tmp_id,
-                        tmp_date,
-                        tmp_position,
-                        tmp_order_price,
-                        tmp_close_price,
-                        tmp_loss_gain,
-                    ) = get_trading_result()  # 取引結果
+                # try:
+                #     (
+                #         tmp_id,
+                #         tmp_date,
+                #         tmp_position,
+                #         tmp_order_price,
+                #         tmp_close_price,
+                #         tmp_loss_gain,
+                #     ) = get_trading_result()  # 取引結果
 
-                    # データベースに格納
-                    cur.execute(
-                        "INSERT INTO trading values(?, ?, ?, ?, ?, ?)",
-                        (
-                            tmp_id,
-                            tmp_date,
-                            tmp_position,
-                            tmp_order_price,
-                            tmp_close_price,
-                            tmp_loss_gain,
-                        ),
-                    )
-                    conn.commit()
-                    print_log(
-                        f"取引結果をデータベースに格納しました: id={tmp_id}, date={tmp_date}, position={tmp_position}, order_price={tmp_order_price}, close_price={tmp_close_price}, loss_gain={tmp_loss_gain}",
-                        notify=False,
-                    )
-                except Exception as e:
-                    print_log(
-                        f"取引結果の格納中にエラーが発生しました: {e}",
-                        level="error",
-                        notify=True,
-                    )
+                #     # データベースに格納
+                #     cur.execute(
+                #         "INSERT INTO trading values(?, ?, ?, ?, ?, ?)",
+                #         (
+                #             tmp_id,
+                #             tmp_date,
+                #             tmp_position,
+                #             tmp_order_price,
+                #             tmp_close_price,
+                #             tmp_loss_gain,
+                #         ),
+                #     )
+                #     conn.commit()
+                #     print_log(
+                #         f"取引結果をデータベースに格納しました: id={tmp_id}, date={tmp_date}, position={tmp_position}, order_price={tmp_order_price}, close_price={tmp_close_price}, loss_gain={tmp_loss_gain}",
+                #         notify=False,
+                #     )
+                # except Exception as e:
+                #     print_log(
+                #         f"取引結果の格納中にエラーが発生しました: {e}",
+                #         level="error",
+                #         notify=True,
+                #     )
 
                 try:
                     available = int(get_available_amount())
                     profit = available - default_available
                     profit_rate = profit / default_available
                     # print_log(
-                    #     f"現在の残高は{available}円で、利益は{profit}円です", notify=True
+                    #     f"決済損益は{tmp_loss_gain}で、現在の残高は{available}円です",
+                    #     notify=False,
                     # )
-                    print_log(
-                        f"決済損益は{tmp_loss_gain}で、現在の残高は{available}円です",
-                        notify=False,
-                    )
                 except Exception as e:
                     print_log(
                         f"残高の取得中にエラーが発生しました: {e}",
                         level="error",
                         notify=True,
                     )
+
+                if current_time.hour == 0:
+                    daily_profit = available - previous_available
+                    print_log(
+                        f"{(current_time - timedelta(days=1)).strftime('%Y-%m-%d')}\n損益: {daily_profit}円\n残高: {available}円",
+                        notify=True,
+                    )
+                    previous_available = available
 
                 if profit_rate < -0.2:
                     print_log(
@@ -219,41 +225,41 @@ while True:
                 )
                 continue
 
-            # --------日次で損益をレポーティング--------#
-            if current_time.hour == 0:
-                try:
-                    cur.execute(
-                        "SELECT SUM(loss_gain) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day')"
-                    )
-                    daily_profit = cur.fetchone()[0] or 0
+            # # --------日次で損益をレポーティング--------#
+            # if current_time.hour == 0:
+            #     try:
+            #         cur.execute(
+            #             "SELECT SUM(loss_gain) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day')"
+            #         )
+            #         daily_profit = cur.fetchone()[0] or 0
 
-                    cur.execute(
-                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day')"
-                    )
-                    daily_trades = cur.fetchone()[0]
+            #         cur.execute(
+            #             "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day')"
+            #         )
+            #         daily_trades = cur.fetchone()[0]
 
-                    cur.execute(
-                        "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day') AND loss_gain > 0"
-                    )
-                    daily_wins = cur.fetchone()[0]
+            #         cur.execute(
+            #             "SELECT COUNT(*) FROM trading WHERE DATE(date) = DATE('now', 'localtime', '-1 day') AND loss_gain > 0"
+            #         )
+            #         daily_wins = cur.fetchone()[0]
 
-                    daily_win_rate = (
-                        daily_wins / daily_trades if daily_trades > 0 else 0
-                    )
+            #         daily_win_rate = (
+            #             daily_wins / daily_trades if daily_trades > 0 else 0
+            #         )
 
-                    cur.execute("SELECT SUM(loss_gain) FROM trading")
-                    cumulative_profit = cur.fetchone()[0] or 0
+            #         cur.execute("SELECT SUM(loss_gain) FROM trading")
+            #         cumulative_profit = cur.fetchone()[0] or 0
 
-                    print_log(
-                        f"{(current_time - timedelta(days=1)).strftime('%Y-%m-%d')}\n損益: {daily_profit}円\n勝率: {daily_win_rate * 100:.1f}%({daily_wins}/{daily_trades})\n累積損益: {cumulative_profit}円",
-                        notify=True,
-                    )
-                except Exception as e:
-                    print_log(
-                        f"日次損益の計算中にエラーが発生しました: {e}",
-                        level="error",
-                        notify=True,
-                    )
+            #         print_log(
+            #             f"{(current_time - timedelta(days=1)).strftime('%Y-%m-%d')}\n損益: {daily_profit}円\n勝率: {daily_win_rate * 100:.1f}%({daily_wins}/{daily_trades})\n累積損益: {cumulative_profit}円",
+            #             notify=True,
+            #         )
+            #     except Exception as e:
+            #         print_log(
+            #             f"日次損益の計算中にエラーが発生しました: {e}",
+            #             level="error",
+            #             notify=True,
+            #         )
 
         else:
             remaining_minutes = 60 - current_time.minute
