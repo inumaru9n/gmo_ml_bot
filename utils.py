@@ -5,7 +5,7 @@ import requests
 
 conf = configparser.ConfigParser()
 conf.read("config.ini")
-LINE_NOTIFY_TOKEN = conf["line"]["LINE_NOTIFY_TOKEN"]
+DISCORD_WEBHOOK_URL = conf["discord"]["DISCORD_WEBHOOK_URL"]
 log_path = "./gmo_ml_bot.log"
 
 logging.basicConfig(
@@ -18,11 +18,10 @@ logging.basicConfig(
 def print_log(message, level="info", notify=False):
     level = level.lower()
     if notify:
-        url = "https://notify-api.line.me/api/notify"
-        headers = {"Authorization": f"Bearer {LINE_NOTIFY_TOKEN}"}
-        data = {"message": f" {message}"}
+        url = DISCORD_WEBHOOK_URL
+        data = {"content": message}
         try:
-            requests.post(url, headers=headers, data=data)
+            requests.post(url, json=data)
         except requests.exceptions.RequestException as e:
             logging.error(f"Failed to send notification: {e}")
 
