@@ -1,13 +1,15 @@
 import configparser
 import json
 import os
+import re
 import time
 from datetime import datetime, timedelta
 
 from openai import OpenAI
 
 from make_dataset import get_data_for_days
-from technicals import technical_analysis
+from news_analyzer import get_news_articles
+from technical_analyzer import technical_analysis
 from trade import exe_all_position, get_available_amount, get_price, order_process
 from utils import print_log
 
@@ -34,22 +36,34 @@ current_time = datetime.now()
 hour = current_time.hour
 
 
-def predict_with_llm(technical_analysis_report):
+def predict_with_llm(technical_analysis_report, news_articles):
     prompt = f"""
     あなたはプロの仮想通貨トレーダーです。
-    以下に示すビットコインの時間足チャートに基づくテクニカル分析結果をもとに、1時間後のビットコインの価格動向を論理的かつ具体的に予測してください。
-    {json.dumps(technical_analysis_report)}
+    以下に示すテクニカル分析結果とニュース記事を基に、1時間後のビットコインの価格動向を論理的かつ具体的に予測してください。
+
+    [ビットコインの時間足チャートに基づくテクニカル分析結果]
+    {json.dumps(technical_analysis_report, ensure_ascii=False)}
+
+    [24時間以内のビットコイン関連ニュース記事]
+    {json.dumps(news_articles, ensure_ascii=False, indent=2)}
+
+    テクニカル分析とニュース情報の両方を考慮して、総合的な判断を行ってください。
+    特に、テクニカル分析とニュース情報から読み取れる市場感情が矛盾する場合は、その理由と、どちらの分析をより重視するかについても説明してください。
 
     出力は、次のJSON形式に厳密に従って記述してください。
     {{
-        "prediciton": "bullish/bearish/neutral",
+        "prediction": "bullish/bearish/neutral",
         "confidence": float between 0 and 100,
         "reasoning": "string"
     }}
     """
 
     response = client.chat.completions.create(
-        model="gpt-4.1", temperature=0, messages=[{"role": "user", "content": prompt}]
+        model="gpt-4.1",
+        temperature=0,
+        messages=[
+            {"role": "user", "content": prompt},
+        ],
     )
 
     return response
@@ -135,22 +149,70 @@ while True:
                 X = X.loc[:target_time]
 
                 technical_analysis_report = technical_analysis(X)
-
-                prediction = technical_analysis_report["signal"]
+                # prediction = technical_analysis_report["signal"]
                 print_log(
-                    json.dumps(technical_analysis_report),
+                    json.dumps(technical_analysis_report, ensure_ascii=False),
                     notify=False,
                 )
 
-                # response = predict_with_llm(technical_analysis_report)
-                # response_json = json.loads(response.choices[0].message.content)
-                # prediction = response_json["prediction"]
-                # confidence = response_json["confidence"]
-                # reasoning = response_json["reasoning"]
-                # print_log(
-                #     f"予測結果: {prediction}\n信頼度: {confidence}\n理由: {reasoning}",
-                #     notify=True,
-                # )
+                news_articles = get_news_articles()
+                print_log(
+                    json.dumps(news_articles, ensure_ascii=False, indent=2),
+                    notify=False,
+                )
+
+                response = predict_with_llm(technical_analysis_report, news_articles)
+                response_content = response.choices[0].message.content
+
+                try:
+                    # まずJSONパースを試みる
+                    response_json = json.loads(response_content)
+                    prediction = response_json["prediction"]
+                    confidence = response_json["confidence"]
+                    reasoning = response_json["reasoning"]
+                except json.JSONDecodeError:
+                    print_log(
+                        f"JSONパースエラーが発生しました。正規表現で抽出を試みます。\nLLMの出力: {response_content}",
+                        level="warning",
+                        notify=False,
+                    )
+
+                    # デフォルト値を設定
+                    prediction = "neutral"
+                    confidence = 50
+                    reasoning = "抽出失敗"
+
+                    # 正規表現で抽出
+                    # prediction抽出 (bullish/bearish/neutral)
+                    prediction_match = re.search(
+                        r'"prediction"[^\w]*:?[^\w]*"(bullish|bearish|neutral)"',
+                        response_content,
+                        re.IGNORECASE,
+                    )
+                    if prediction_match:
+                        prediction = prediction_match.group(1).lower()
+
+                    # confidence抽出 (0-100の数値)
+                    confidence_match = re.search(
+                        r'"confidence"[^\w]*:?[^\w]*(\d+(?:\.\d+)?)', response_content
+                    )
+                    if confidence_match:
+                        try:
+                            confidence = float(confidence_match.group(1))
+                        except ValueError:
+                            pass
+
+                    # reasoning抽出 (引用符で囲まれた文字列)
+                    reasoning_match = re.search(
+                        r'"reasoning"[^\w]*:?[^\w]*"([^"]*)"', response_content
+                    )
+                    if reasoning_match:
+                        reasoning = reasoning_match.group(1)
+
+                print_log(
+                    f"予測結果: {prediction}\n信頼度: {confidence}\n理由: {reasoning}",
+                    notify=False,
+                )
 
                 if prediction == "bullish":
                     side = "BUY"

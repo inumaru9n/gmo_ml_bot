@@ -6,6 +6,7 @@ data/
 sql/*.db
 !sql/
 
+test_*.py
 *.ipynb
 !train*.ipynb
 *.out
