@@ -19,9 +19,9 @@ os.environ["OPENAI_API_KEY"] = conf["openai"]["apiKey"]
 client = OpenAI()
 
 symbol = "BTC_JPY"
-trade_num = 0  # 取引回数
-dbname = "sql/trading.db"  # 取引結果を格納するテーブル
 exe_type = "MARKET"  # 注文方式(成行)
+
+reflection_history_window = 6  # リフレクションに使用する予測履歴のサイズ
 
 # -----------------------------Bot本体の処理-----------------------------#
 print_log("gmo_ml_botの稼働を開始します", notify=True)
@@ -32,31 +32,55 @@ except Exception as e:
     print_log(f"残高の取得中にエラーが発生しました: {e}", level="error", notify=True)
     raise
 
+trade_num = 0  # 取引回数
 current_time = datetime.now()
 hour = current_time.hour
+reflection_history = []
+previous_price = None
 
 
-def predict_with_llm(technical_analysis_report, news_articles):
+def predict_with_llm(
+    current_time, technical_analysis_report, news_articles, reflection_history
+):
     prompt = f"""
-    あなたはプロの仮想通貨トレーダーです。
-    以下に示すテクニカル分析結果とニュース記事を基に、1時間後のビットコインの価格動向を論理的かつ具体的に予測してください。
+あなたはプロの仮想通貨トレーダーです。
+以下に示すテクニカル分析結果とニュース記事を基に、1時間後のビットコインの価格動向を論理的かつ具体的に予測してください。
 
-    [ビットコインの時間足チャートに基づくテクニカル分析結果]
-    {json.dumps(technical_analysis_report, ensure_ascii=False)}
+[現在時刻]
+{current_time.strftime("%a, %d %b %Y %H:%M:%S %z")}
 
-    [24時間以内のビットコイン関連ニュース記事]
-    {json.dumps(news_articles, ensure_ascii=False, indent=2)}
+[ビットコインの時間足チャートに基づくテクニカル分析結果]
+{json.dumps(technical_analysis_report, ensure_ascii=False)}
 
-    テクニカル分析とニュース情報の両方を考慮して、総合的な判断を行ってください。
-    特に、テクニカル分析とニュース情報から読み取れる市場感情が矛盾する場合は、その理由と、どちらの分析をより重視するかについても説明してください。
+[24時間以内のビットコイン関連ニュース記事]
+{json.dumps(news_articles, ensure_ascii=False, indent=2)}
 
-    出力は、次のJSON形式に厳密に従って記述してください。
-    {{
-        "prediction": "bullish/bearish/neutral",
-        "confidence": float between 0 and 100,
-        "reasoning": "string"
-    }}
-    """
+[注意点]
+テクニカル分析とニュース情報の両方を考慮して、総合的な判断を行ってください。
+特に、テクニカル分析とニュース情報から読み取れる市場感情が矛盾する場合は、その理由と、どちらの分析をより重視するかについても説明してください。
+"""
+
+    # 予測履歴がある場合は追加
+    if len(reflection_history) > 0:
+        prompt += f"""
+
+以下は過去のあなたの予測と実際の結果です。予測の誤りを反省し、より精度の高い予測を行ってください。
+
+[過去の予測履歴と実績]
+{json.dumps(reflection_history, ensure_ascii=False)}
+"""
+
+    prompt += """
+
+出力は、次のJSON形式に厳密に従って記述してください。
+{{
+    "prediction": "bullish/bearish/neutral",
+    "confidence": float between 0 and 100,
+    "reasoning": "string"
+}}
+"""
+
+    print_log(f"LLMへのプロンプト: {prompt}", notify=False)
 
     response = client.chat.completions.create(
         model="gpt-4.1",
@@ -75,7 +99,7 @@ while True:
         if hour != current_time.hour:  # 1時間経過したら取引を行う
             print_log("****************", notify=False)
             try:
-                price = get_price()
+                price = float(get_price())
                 print_log(f"現在の{symbol}価格は{price}円です", notify=False)
             except Exception as e:  # メンテナンス時はスキップ
                 print_log(
@@ -83,6 +107,16 @@ while True:
                     level="warning",
                     notify=True,
                 )
+                # 価格取得エラー時は前回の予測レコードを削除
+                if len(reflection_history) > 0:
+                    last_record = reflection_history[-1]
+                    if last_record["actual_result"] is None:
+                        print_log(
+                            "価格取得エラーのため、前回の予測レコードを削除します",
+                            notify=False,
+                        )
+                        reflection_history.pop()  # 最後のレコードを削除
+
                 hour = current_time.hour
                 continue
 
@@ -161,7 +195,39 @@ while True:
                     notify=False,
                 )
 
-                response = predict_with_llm(technical_analysis_report, news_articles)
+                # 前回の予測レコードの実績を更新
+                if len(reflection_history) > 0 and previous_price is not None:
+                    last_record = reflection_history[-1]
+                    if last_record["actual_result"] is None:
+                        price_change = ((price - previous_price) / previous_price) * 100
+                        direction = (
+                            "up"
+                            if price_change > 0
+                            else "down" if price_change < 0 else "flat"
+                        )
+
+                        last_prediction = last_record["prediction"]["prediction"]
+                        if last_prediction == "bullish" and direction == "up":
+                            accuracy = True
+                        elif last_prediction == "bearish" and direction == "down":
+                            accuracy = True
+                        elif last_prediction == "neutral" and abs(price_change) < 1:
+                            accuracy = True
+                        else:
+                            accuracy = False
+
+                        last_record["actual_result"] = {
+                            "price_change": round(price_change, 2),
+                            "price_change_direction": direction,
+                            "prediction_accuracy": accuracy,
+                        }
+
+                response = predict_with_llm(
+                    current_time,
+                    technical_analysis_report,
+                    news_articles,
+                    reflection_history,
+                )
                 response_content = response.choices[0].message.content
 
                 try:
@@ -213,6 +279,28 @@ while True:
                     f"予測結果: {prediction}\n信頼度: {confidence}\n理由: {reasoning}",
                     notify=False,
                 )
+
+                # 今回の予測を履歴に保存
+                current_record = {
+                    "prediciton_time": current_time.strftime(
+                        "%a, %d %b %Y %H:%M:%S %z"
+                    ),
+                    "technical_analysis_report": technical_analysis_report,
+                    "news_articles": news_articles,
+                    "prediction": {
+                        "prediction": prediction,
+                        "confidence": confidence,
+                        "reasoning": reasoning,
+                    },
+                    "actual_result": None,  # 次回の予測時に更新
+                }
+                reflection_history.append(current_record)
+
+                # 履歴のサイズを制限
+                if len(reflection_history) > reflection_history_window:
+                    reflection_history = reflection_history[-reflection_history_window:]
+
+                previous_price = price
 
                 if prediction == "bullish":
                     side = "BUY"
