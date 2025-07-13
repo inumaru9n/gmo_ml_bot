@@ -80,7 +80,7 @@ def predict_with_llm(
 }}
 """
 
-    print_log(f"LLMへのプロンプト: {prompt}", notify=False)
+    print_log(f"prompt: {prompt}", notify=False)
 
     response = client.chat.completions.create(
         model="gpt-4.1",
@@ -183,17 +183,8 @@ while True:
                 X = X.loc[:target_time]
 
                 technical_analysis_report = technical_analysis(X)
-                # prediction = technical_analysis_report["signal"]
-                print_log(
-                    json.dumps(technical_analysis_report, ensure_ascii=False),
-                    notify=False,
-                )
 
                 news_articles = get_news_articles()
-                print_log(
-                    json.dumps(news_articles, ensure_ascii=False, indent=2),
-                    notify=False,
-                )
 
                 # 前回の予測レコードの実績を更新
                 if len(reflection_history) > 0 and previous_price is not None:
